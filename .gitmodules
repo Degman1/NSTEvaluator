@@ -1,0 +1,9 @@
+[submodule "style-transfer-modules/LinearStyleTransfer"]
+	path = style-transfer-modules/LinearStyleTransfer
+	url = git@github.com:sunshineatnoon/LinearStyleTransfer.git
+[submodule "style-transfer-modules/Arbitrary-Style-Transfer-via-Multi-Adaptation-Network"]
+	path = style-transfer-modules/Arbitrary-Style-Transfer-via-Multi-Adaptation-Network
+	url = git@github.com:diyiiyiii/Arbitrary-Style-Transfer-via-Multi-Adaptation-Network.git
+[submodule "style-transfer-modules/StyleID"]
+	path = style-transfer-modules/StyleID
+	url = git@github.com:jiwoogit/StyleID.git
