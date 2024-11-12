@@ -6,6 +6,8 @@ class NSTModule(ABC):
 
     def __init__(self):
         super().__init__()
+        # Store model parameters necessary for the transfer operation
+        self.model = {}
 
     @abstractmethod
     def loadModel(self):
