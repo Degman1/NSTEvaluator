@@ -7,6 +7,8 @@ from PIL import Image
 import os
 import torchvision.transforms as transforms
 
+from Loader import Dataset
+
 class NSTModule(ABC):
     """Parent class from which all neural style transfer classes inherit"""
 
@@ -25,7 +27,8 @@ class NSTModule(ABC):
         self.batch_size = 1
         
         # Allocate memory for these tensors for reuse on the GPU
-        self.fine_size = 256
+        self.fine_size = 512
+        self.load_size = 512
         self.content_image = torch.Tensor(self.batch_size, 3, self.fine_size, self.fine_size).to(self.device)
         self.style_image = torch.Tensor(self.batch_size, 3, self.fine_size, self.fine_size).to(self.device)
         
@@ -34,8 +37,6 @@ class NSTModule(ABC):
         self.style_image_directory = '../style_images/'
         self.output_directory = f'../output/{name}'
         self._setup_output_directory()
-        
-        self.resize_transform = transforms.Resize((256, 256))
 
     def _setup_output_directory(self):
         if not os.path.exists(self.output_directory):
@@ -117,43 +118,38 @@ class NSTModule(ABC):
         total_time_microseconds = (end_time - start_time) * 1e6
         return output_path, total_time_microseconds
 
-    def _load_image(self, path):
-        """
-        Load an image from disk into a numpy array
-        
-        @param path String The path to the image
-        @return The image as a Numpy array
-        """
-        image = Image.open(path).convert("RGB")
-        image = self.resize_transform(image)
-        # Reorder to [C, H, W] and add batch dimension to make it [1, C, H, W]
-        image_array = torch.Tensor(np.array(image)).permute(2, 0, 1).unsqueeze(0).to(self.device)
-        image_name = os.path.splitext(os.path.basename(path))[0]
-        return image_array, image_name
+    def _get_dataloaders(self):
+        content_dataset = Dataset(self.content_image_directory, self.load_size, self.fine_size)
+        content_loader = torch.utils.data.DataLoader(dataset=content_dataset,
+                                                    batch_size = self.batch_size,
+                                                    shuffle = False,
+                                                    num_workers = 1)
+        style_dataset = Dataset(self.style_image_directory, self.load_size, self.fine_size)
+        style_loader = torch.utils.data.DataLoader(dataset=style_dataset,
+                                                batch_size = self.batch_size,
+                                                shuffle = False,
+                                                num_workers = 1)
+        return content_loader, style_loader
 
-    def benchmark_style_transfer(self, content_paths, style_paths):
+    def benchmark_style_transfer(self):
         """
         Benchmark multiple style transfer operations
-        
-        @param content_path String The paths to the base content images
-        @param style_path String The paths to the style images
+
         @return [(String, Float)] A list of pairs of image output paths and transfer times
         """
 
         outputs = {}
-
-        for style_path in style_paths:
-            style_image, style_name = self._load_image(style_path)
-            self._preprocess_style_image(style_image)
-            for content_path in content_paths:
-                content_image, content_name = self._load_image(content_path)
-                self._preprocess_content_image(content_image)
+        
+        content_loader, style_loader = self._get_dataloaders()
+        
+        for ci, (content, content_name) in enumerate(content_loader):
+            content_name = content_name[0]
+            self._preprocess_content_image(content)
+            for sj, (style, style_name) in enumerate(style_loader):
+                style_name = style_name[0]
+                self._preprocess_style_image(style)
                 output, time = self._benchmark_single_style_transfer(self.content_image, self.style_image)
                 output_path = self._postprocess_output_image(output, content_name, style_name)
                 outputs[output_path] = time
-                # Clear cache to save memory
-                torch.cuda.empty_cache()
-            # Clear cache to save memory
-            torch.cuda.empty_cache()
             
         return outputs

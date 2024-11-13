@@ -52,6 +52,4 @@ class LinearNSTModule(NSTModule):
 if __name__ == '__main__':
     lnst = LinearNSTModule()
     lnst.load_model()
-    content_paths = ['LinearStyleTransfer/data/content/1.jpg', 'LinearStyleTransfer/data/content/chicago.png']
-    style_paths = ['LinearStyleTransfer/data/style/27.jpg', 'LinearStyleTransfer/data/style/antimonocromatismo.jpg']
-    lnst.benchmark_style_transfer(content_paths, style_paths)
+    lnst.benchmark_style_transfer()
