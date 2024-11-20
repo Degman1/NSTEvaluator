@@ -28,7 +28,7 @@ class Dataset(data.Dataset):
 
         imgName = self.image_list[index]
         imgName = imgName.split('.')[0]
-        return ImgA,imgName
+        return ImgA, imgName
 
     def __len__(self):
         return len(self.image_list)

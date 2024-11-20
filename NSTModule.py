@@ -73,13 +73,14 @@ class NSTModule(ABC):
                 params.to(self.device)
         else:
             print("Using cpu")
-    
+            
     def _preprocess_content_image(self, image):
         """
         Resize or mutate content image before transferring
         
         @param path Numpy Array The base content image
         """
+        self.content_image.resize_(image.size()).copy_(image).to(self.device)
         return image
     
     def _preprocess_style_image(self, image):
@@ -88,6 +89,7 @@ class NSTModule(ABC):
         
         @param image Numpy Array The style image
         """
+        self.style_image.resize_(image.size()).copy_(image).to(self.device)
         return image
     
     def _postprocess_output_image(self, image, content_name, style_name):

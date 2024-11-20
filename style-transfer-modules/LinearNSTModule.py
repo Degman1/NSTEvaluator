@@ -32,12 +32,6 @@ class LinearNSTModule(NSTModule):
         self.model['dec'].load_state_dict(torch.load(self.decoder_dir, map_location=self.device))
         self.model['matrix'].load_state_dict(torch.load(self.matrix_path, map_location=self.device))
     
-    def _preprocess_content_image(self, image):
-        self.content_image.resize_(image.size()).copy_(image).to(self.device)
-    
-    def _preprocess_style_image(self, image):
-        self.style_image.resize_(image.size()).copy_(image).to(self.device)
-    
     def _transfer_style(self, content_image, style_image):
         with torch.no_grad():
             sF = self.model['vgg'](self.style_image)
