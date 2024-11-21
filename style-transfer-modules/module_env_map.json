@@ -1,4 +1,5 @@
 {
   "LinearNSTModule.py": "linear-st",
-  "ArbitraryMultiAdaptationNSTModule.py": "arbitrary-st"
+  "ArbitraryMultiAdaptationNSTModule.py": "arbitrary-st",
+  "StyleIDNSTModule.py": "diffusion-st"
 }

@@ -64,15 +64,18 @@ class NSTModule(ABC):
         pass
 
     def load_model(self):
-        """Load the style transfer model and set up for inference"""
+        """Load the style transfer model and set up for inference on the proper device"""
         self._load_model()
 
         if (self.is_running_on_gpu()):
             print("Using cuda")
             for name, params in self.model.items():
                 params.to(self.device)
+                params.eval()
         else:
             print("Using cpu")
+            for name, params in self.model.items():
+                params.eval()
             
     def _preprocess_content_image(self, image):
         """
@@ -81,7 +84,6 @@ class NSTModule(ABC):
         @param path Numpy Array The base content image
         """
         self.content_image.resize_(image.size()).copy_(image).to(self.device)
-        return image
     
     def _preprocess_style_image(self, image):
         """
@@ -90,7 +92,6 @@ class NSTModule(ABC):
         @param image Numpy Array The style image
         """
         self.style_image.resize_(image.size()).copy_(image).to(self.device)
-        return image
     
     def _postprocess_output_image(self, image, content_name, style_name):
         """
