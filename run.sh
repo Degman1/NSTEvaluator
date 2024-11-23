@@ -3,6 +3,9 @@
 # Define environment variables
 ./setenv.sh
 
+# Print out gpu information
+nvidia-smi
+
 # Define the directory containing the Python files
 DIRECTORY="style-transfer-modules"
 
@@ -48,6 +51,11 @@ while IFS= read -r line; do
         echo "Error: Python file '$FILE_NAME' not found in directory '$DIRECTORY'. Skipping."
         continue
     fi
+
+    # Output a clear separator for the new file
+    echo "========================================="
+    echo "Starting Work on $FILE_NAME"
+    echo "========================================="
 
     # Activate the specified Conda environment
     echo "Activating Conda environment: $ENV_NAME"
