@@ -27,8 +27,8 @@ class NSTModule(ABC):
         self.batch_size = 1
         
         # Allocate memory for these tensors for reuse on the GPU
-        self.fine_size = 256
-        self.load_size = 256
+        self.fine_size = 512
+        self.load_size = 512
         self.content_image = torch.Tensor(self.batch_size, 3, self.fine_size, self.fine_size).to(self.device)
         self.style_image = torch.Tensor(self.batch_size, 3, self.fine_size, self.fine_size).to(self.device)
         

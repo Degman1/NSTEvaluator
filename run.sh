@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Define environment variables
+./setenv.sh
+
 # Define the directory containing the Python files
 DIRECTORY="style-transfer-modules"
 

@@ -34,7 +34,7 @@ class StyleIDNSTModule(NSTModule):
         self.model_config = "StyleID/models/ldm/stable-diffusion-v1/v1-inference.yaml"
         self.ckpt = "StyleID/models/ldm/stable-diffusion-v1/model.ckpt"
         self.precision = "autocast"
-        precision_scope = autocast if self.precision == "autocast" else nullcontext
+        self.precision_scope = autocast if self.precision == "autocast" else nullcontext
         self.without_init_adain = False
         self.without_attn_injection = False
 
@@ -105,14 +105,13 @@ class StyleIDNSTModule(NSTModule):
         )
 
     def save_feature_map(self, feature_map, filename, time):
-        global feat_maps
         cur_idx = self.idx_time_dict[time]
-        feat_maps[cur_idx][f"{filename}"] = feature_map
+        self.feat_maps[cur_idx][f"{filename}"] = feature_map
 
     def _load_model(self):
         config = OmegaConf.load(f"{self.model_config}")
-        self.model["model"] = self.load_model_from_config(config, f"{self.ckpt}")
-        self.model["unet_model"] = self.model["model"].model.diffusion_model
+        self.model["model"] = self.load_model_from_config(config, f"{self.ckpt}").to(self.device)
+        self.model["unet_model"] = self.model["model"].model.diffusion_model.to(self.device)
 
         self.sampler = DDIMSampler(self.model["model"])
         self.sampler.make_schedule(
@@ -206,17 +205,17 @@ class StyleIDNSTModule(NSTModule):
                     )
                     if self.without_attn_injection:
                         self.feat_maps = None
-
+                    
                     # inference
                     samples_ddim, intermediates = self.sampler.sample(
                         S=self.ddim_steps,
                         batch_size=1,
-                        shape=self.content_image.shape(),
+                        shape=self.content_image.squeeze().shape,
                         verbose=False,
                         unconditional_conditioning=self.uc,
                         eta=self.ddim_eta,
                         x_T=adain_z_enc,
-                        injected_features=feat_maps,
+                        injected_features=self.feat_maps,
                         start_step=self.start_step,
                     )
 
