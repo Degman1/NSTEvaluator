@@ -113,5 +113,4 @@ class ArbitraryMultiAdaptationNSTModule(NSTModule):
 
 if __name__ == '__main__':
     amanst = ArbitraryMultiAdaptationNSTModule()
-    amanst.load_model()
-    amanst.benchmark_style_transfer()
+    amanst.run()

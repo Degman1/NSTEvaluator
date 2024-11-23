@@ -230,5 +230,4 @@ class StyleIDNSTModule(NSTModule):
 
 if __name__ == "__main__":
     sidnst = StyleIDNSTModule()
-    sidnst.load_model()
-    sidnst.benchmark_style_transfer()
+    sidnst.run()

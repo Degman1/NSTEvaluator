@@ -45,5 +45,4 @@ class LinearNSTModule(NSTModule):
 
 if __name__ == '__main__':
     lnst = LinearNSTModule()
-    lnst.load_model()
-    lnst.benchmark_style_transfer()
+    lnst.run()

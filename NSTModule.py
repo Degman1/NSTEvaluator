@@ -6,6 +6,7 @@ import numpy as np
 from PIL import Image
 import os
 import torchvision.transforms as transforms
+import json
 
 from Loader import Dataset
 
@@ -65,6 +66,9 @@ class NSTModule(ABC):
 
     def load_model(self):
         """Load the style transfer model and set up for inference on the proper device"""
+        
+        start_time = time()
+        
         self._load_model()
 
         if (self.is_running_on_gpu()):
@@ -76,6 +80,10 @@ class NSTModule(ABC):
             print("Using cpu")
             for name, params in self.model.items():
                 params.eval()
+                
+        end_time = time()
+        total_time = end_time - start_time
+        return total_time
             
     def _preprocess_content_image(self, image):
         """
@@ -113,13 +121,13 @@ class NSTModule(ABC):
         @param style_image Numpy Array The style image
         @return String The path at which the output image will be stored, named by 
                        concatenating the input file names with a dash seperator.
-        @return Float The total time taken to perform the transfer in microseconds
+        @return Float The total time taken to perform the transfer in nanoseconds
         """
         start_time = time()
         output_path = self._transfer_style(content_image, style_image)
         end_time = time()
-        total_time_microseconds = (end_time - start_time) * 1e6
-        return output_path, total_time_microseconds
+        total_time = end_time - start_time
+        return output_path, total_time
 
     def _get_dataloaders(self):
         content_dataset = Dataset(self.content_image_directory, self.load_size, self.fine_size)
@@ -154,5 +162,20 @@ class NSTModule(ABC):
                 output, time = self._benchmark_single_style_transfer(self.content_image, self.style_image)
                 output_path = self._postprocess_output_image(output, content_name, style_name)
                 outputs[output_path] = time
-            
+        
         return outputs
+
+    def run(self):
+        """
+        Load the model and run inference
+        """
+        
+        load_time = self.load_model()
+        outputs = self.benchmark_style_transfer()
+        outputs['load_time'] = load_time
+        outputs['unit'] = 'seconds'
+        
+        print("Saving output paths and benchmarking results")
+        
+        with open(f"{self.output_directory}/time_sec.json", "w") as f:
+            json.dump(outputs, f)
