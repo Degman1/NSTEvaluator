@@ -1,4 +1,5 @@
 import numpy as np
+import shutil
 import subprocess
 from skimage.metrics import structural_similarity as ssim
 import cv2
@@ -7,6 +8,26 @@ import torchvision.models as models
 import torchvision.transforms as transforms
 import os
 from PIL import Image
+import json
+
+def prepare_directory(src_dir, dst_dir, valid_extensions=('.png', '.jpg', '.jpeg')):
+        """
+        Prepares a directory by copying only valid image files.
+        
+        Parameters:
+            src_dir (str): Source directory containing files.
+            dst_dir (str): Destination directory to store valid files.
+            valid_extensions (tuple): Valid file extensions to include.
+        """
+        # Create destination directory if it doesn't exist
+        if not os.path.exists(dst_dir):
+            os.makedirs(dst_dir)
+
+        # Copy only valid image files
+        for file in os.listdir(src_dir):
+            if file.lower().endswith(valid_extensions):
+                shutil.copy(os.path.join(src_dir, file), dst_dir)
+
 
 class Evaluator:
 
@@ -23,13 +44,16 @@ class Evaluator:
         @return output (str): Output from the art_fid command.
         """
         try:
+            temp_stylized_dir = "temp_stylized_images"
+            prepare_directory(stylized_images_path, temp_stylized_dir)
+
             command = [
                 'python', '-m', 'art_fid',
                 '--style_images', style_images_path,            #specify the path to directory containing input style images
                 '--content_images', content_images_path,        #specify the path to directory containing input content images
-                '--stylized_images', stylized_images_path       #specify the path to directory containing output stylized images
+                '--stylized_images', temp_stylized_dir       #specify the path to directory containing output stylized images
             ]
-            env = {'CUDA_VISIBLE_DEVICES': cuda_device}         #set the CUDA_VISIBLE_DEVICES variable (specified in art-fid usage prompt)
+            env = os.environ.copy()        #set the CUDA_VISIBLE_DEVICES variable (specified in art-fid usage prompt)
             result = subprocess.run(        #execute the command as a subprocess
                 command,                    #command portion of the usage command line prompt
                 capture_output=True,        #capture the output
@@ -37,6 +61,7 @@ class Evaluator:
                 check=True,                 #if command fails return error
                 env=env                     #specify the cuda environment (default is 0)
             )
+            shutil.rmtree(temp_stylized_dir)
             return result.stdout  #return the output from art-fid
         except subprocess.CalledProcessError as e:
             print("Error calling art_fid:", e)
@@ -46,7 +71,6 @@ class Evaluator:
     
 
     def structuralSimilarity (content_folder_path, stylized_folder_path):
-        #may need to expand this to follow the same idea as artfid, where it iterates through the folders of the content and stylized images to do this calculation all at once
         """
         Compute the structural similarity between the content image and the stylized image
 
@@ -56,6 +80,9 @@ class Evaluator:
 
         @return ssim_scores [] (float): Strucutral similarity scores between the two images, all saved in a list.
         """
+        temp_stylized_dir = "temp_stylized_folder"
+        prepare_directory(stylized_folder_path, temp_stylized_dir)
+        stylized_folder_path = temp_stylized_dir
         ssim_scores = []
         content_files = os.listdir(content_folder_path)
         stylized_files = os.listdir(stylized_folder_path)
@@ -70,11 +97,11 @@ class Evaluator:
                 stylized_image = cv2.resize(stylized_image, (content_image.shape[1], content_image.shape[0]))       #reshape if the two images aren't the same size
             ssim_score, _ = ssim(content_image, stylized_image, full=True)              #compute the ssim score for the two images
             ssim_scores.append(ssim_score)
+        shutil.rmtree(temp_stylized_dir)
         return ssim_scores
 
 
     def colorSimilarity (style_folder_path, stylized_folder_path) :
-        #may need the same idea as structual similarity
         """
         Compute the structural similarity between the style image and the stylized image
 
@@ -84,6 +111,9 @@ class Evaluator:
 
         @return color_similarity_score [] (float): Color similarity scores between the two images, all saved in a list.
         """
+        temp_stylized_dir = "temp_stylized_folder"
+        prepare_directory(stylized_folder_path, temp_stylized_dir)
+        stylized_folder_path = temp_stylized_dir
         color_similarity_scores = []
         style_files = os.listdir(style_folder_path)
         stylized_files = os.listdir(stylized_folder_path)
@@ -102,6 +132,7 @@ class Evaluator:
             stylized_hist = [cv2.normalize(h, h).flatten() for h in stylized_hist]
             color_similarity_score = np.mean([cv2.compareHist(style_hist[i], stylized_hist[i], cv2.HISTCMP_CORREL) for i in range(3)])          #compute the similarity score based on the average correlation for the two normalized histograms
             color_similarity_scores.append(color_similarity_score)
+        shutil.rmtree(temp_stylized_dir)
         return color_similarity_scores
 
 
@@ -120,8 +151,26 @@ class Evaluator:
         pass
 
 
-    def timePerformance ():
+    def timePerformance (output_path):
         """
         Compute the timed performance of a given Style Transfer method
+        @parameters
+            output_path (str): string for the directory for the respective models output
+
+        @return average_time (float): average time it took the model to execute
         """
-        pass
+        for file in os.listdir(output_path):
+            if file.lower().endswith('.json'):  
+                time_file = os.path.join(output_path, file) #identify the json file containin the time it took for each image style transfer to be executed
+        try:
+            with open(time_file, 'r') as file:
+                data = json.load(file) #load the json file
+            times = list(data.values())
+            if not times:
+                print("No time values found in the JSON file.")
+                return None
+            average_time = sum(times) / len(times) #compute the average time
+            return average_time   
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            print(f"Error reading JSON file: {e}")
+            return None
