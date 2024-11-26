@@ -190,9 +190,9 @@ class NSTModule(ABC):
             colorsims = Evaluator.colorSimilarity(self.style_image_directory, self.content_image_directory, stylized_folder_path)
             avg_times = Evaluator.timePerformance(self.style_image_directory, self.content_image_directory, stylized_folder_path)
             results[model_dir] = {
-            "ArtFID": artfid,
-            "SSIM": ssims,
-            "ColorSim": colorsims,
+            "ArtFID": np.mean(artfid),
+            "SSIM": np.mean(ssims),
+            "ColorSim": np.mean(colorsims),
             "AvgTime": avg_times
             }
         print(results)
