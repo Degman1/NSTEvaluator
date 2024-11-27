@@ -26,6 +26,8 @@ def prepare_directory(src_dir, dst_dir, valid_extensions=('.png', '.jpg', '.jpeg
         # Create destination directory if it doesn't exist
         if not os.path.exists(dst_dir):
             os.makedirs(dst_dir)
+        else:
+            shutil.rmtree(dst_dir)
         # Copy only valid image files
         for file in os.listdir(src_dir):
             if file == ".DS_Store":
@@ -338,7 +340,7 @@ class Evaluator:
             print(f"Error reading JSON file: {e}")
             return None
     
-    def animationPerformance():
+    def animationPerformance(ssim_score, color_score, content_loss, style_loss, avg_time, load_time):
         """
         Weighted metric that combines the other metrics to more accurately assess model performance
         
@@ -346,7 +348,28 @@ class Evaluator:
 
         @return result (float): output metric computed for the respective model
         """
-        pass
+        alphas = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+        betas = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+        gammas = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+        deltas = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+        epsilons = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+        zetas = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+        scores = {}
+        norm_content_loss = 1 - (content_loss / 250000)
+        norm_style_loss = 1 - (style_loss / 1e+20)
+        for alpha in alphas:
+            for beta in betas:
+                for gamma in gammas:
+                    for delta in deltas:
+                        for epsilon in epsilons:
+                            for zeta in zetas:
+                                if alpha + beta + gamma + delta + epsilon + zeta == 1:
+                                    out = alpha * ssim_score + beta * color_score + gamma * norm_content_loss + delta * norm_style_loss + epsilon * (1 / avg_time) + zeta * (1 / load_time)
+                                    scores[(alpha, beta, gamma, delta, epsilon, zeta)] = out
+        
+        maxKey = max(scores, key = scores.get)
+        print(maxKey)
+        return scores[maxKey]
         
     def evaluate(style, content, output):
         results = {}
@@ -354,28 +377,30 @@ class Evaluator:
             if model_dir == ".DS_Store":
                 continue
             stylized_folder_path = os.path.join(output, model_dir)
-            artfid = Evaluator.artFidHandler(style, content, stylized_folder_path)
+            #artfid = Evaluator.artFidHandler(style, content, stylized_folder_path)
             ssims = Evaluator.structuralSimilarity(content, stylized_folder_path)
             colorsims = Evaluator.colorSimilarity(style, stylized_folder_path)
             contentLoss, styleLoss = Evaluator.contentStyleLoss(content, style, stylized_folder_path)
             avg_times, load_time, unit = Evaluator.timePerformance(stylized_folder_path)
+            ani_score = Evaluator.animationPerformance(np.mean(ssims), np.mean(colorsims), np.mean(contentLoss), np.mean(styleLoss), avg_times, load_time)
             results[model_dir] = {
-            "ArtFID": artfid,
+            #"ArtFID": artfid,
             "SSIM": np.mean(ssims),
             "ColorSim": np.mean(colorsims),
             "ContentLoss": np.mean(contentLoss),
             "StyleLoss": np.mean(styleLoss),
+            "AnimationScore": ani_score,
             "AvgTime": avg_times,
             "LoadTime": load_time
             }
         return results
     
 
-content_path = sys.argv[1]
-style_path = sys.argv[2]
-output_path = sys.argv[3]
-#content_path = "/Users/bmhall17/Desktop/UMass/Fall 2024/CS682 Neural Networks/cs682finalproject/NSTEvaluator/content_images"
-#style_path = "/Users/bmhall17/Desktop/UMass/Fall 2024/CS682 Neural Networks/cs682finalproject/NSTEvaluator/style_images"
-#output_path = "/Users/bmhall17/Downloads/output"
+#content_path = sys.argv[1]
+#style_path = sys.argv[2]
+#output_path = sys.argv[3]
+content_path = "/Users/bmhall17/Desktop/UMass/Fall 2024/CS682 Neural Networks/cs682finalproject/NSTEvaluator/content_images"
+style_path = "/Users/bmhall17/Desktop/UMass/Fall 2024/CS682 Neural Networks/cs682finalproject/NSTEvaluator/style_images"
+output_path = "/Users/bmhall17/Downloads/output"
 evaluation_results = Evaluator.evaluate(style_path, content_path, output_path)
 print(evaluation_results)
