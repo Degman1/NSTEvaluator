@@ -180,19 +180,3 @@ class NSTModule(ABC):
         
         with open(f"{self.output_directory}/time_sec.json", "w") as f:
             json.dump(outputs, f)
-
-    def evaluate(self):
-        results = {}
-        for model_dir in os.listdir(self.output_directory):
-            stylized_folder_path = os.path.join(self.output_directory, model_dir)
-            artfid = Evaluator.artFid(self.style_image_directory, self.content_image_directory, stylized_folder_path)
-            ssims = Evaluator.structuralSimilarity(self.style_image_directory, self.content_image_directory, stylized_folder_path)
-            colorsims = Evaluator.colorSimilarity(self.style_image_directory, self.content_image_directory, stylized_folder_path)
-            avg_times = Evaluator.timePerformance(self.style_image_directory, self.content_image_directory, stylized_folder_path)
-            results[model_dir] = {
-            "ArtFID": np.mean(artfid),
-            "SSIM": np.mean(ssims),
-            "ColorSim": np.mean(colorsims),
-            "AvgTime": avg_times
-            }
-        print(results)

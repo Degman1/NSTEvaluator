@@ -9,6 +9,10 @@ import torchvision.transforms as transforms
 import os
 from PIL import Image
 import json
+import sys
+import tempfile
+import re
+from torchvision.models import SqueezeNet1_1_Weights
 
 def prepare_directory(src_dir, dst_dir, valid_extensions=('.png', '.jpg', '.jpeg')):
         """
@@ -22,14 +26,84 @@ def prepare_directory(src_dir, dst_dir, valid_extensions=('.png', '.jpg', '.jpeg
         # Create destination directory if it doesn't exist
         if not os.path.exists(dst_dir):
             os.makedirs(dst_dir)
-
         # Copy only valid image files
         for file in os.listdir(src_dir):
+            if file == ".DS_Store":
+                continue
             if file.lower().endswith(valid_extensions):
                 shutil.copy(os.path.join(src_dir, file), dst_dir)
 
+def create_copies(src_dir, copies):
+    # Iterate over all files in the source directory
+    for filename in os.listdir(src_dir):
+        file_path = os.path.join(src_dir, filename)
+        # Check if it's a file (and not a directory)
+        if os.path.isfile(file_path):
+            # Create the specified number of copies
+            for i in range(copies):
+                # Construct a unique filename for the copy
+                new_filename = f"{os.path.splitext(filename)[0]}_copy{i+1}{os.path.splitext(filename)[1]}"
+                new_file_path = os.path.join(src_dir, new_filename)
+                
+                # Copy the file to the original directory
+                shutil.copy(file_path, new_file_path)
+
+
+def create_interleaved_copies(src_dir, copies):
+    # Get a sorted list of files in the source directory
+    files = sorted(os.listdir(src_dir))
+    
+    # Interleave the copies
+    for i in range(copies):
+        for filename in files:
+            file_path = os.path.join(src_dir, filename)
+            # Check if it's a file (and not a directory)
+            if os.path.isfile(file_path):
+                # Construct a unique filename for the copy
+                new_filename = f"{os.path.splitext(filename)[0]}_copy{i+1}{os.path.splitext(filename)[1]}"
+                new_file_path = os.path.join(src_dir, new_filename)
+                
+                # Copy the file to the original directory
+                shutil.copy(file_path, new_file_path)
+
+def resize_images(image_folder, target_size=(224, 224)):
+    for image_name in os.listdir(image_folder):
+        image_path = os.path.join(image_folder, image_name)
+        img = Image.open(image_path)
+        img_resized = img.resize(target_size)
+        img_resized.save(image_path)
+
 
 class Evaluator:
+
+    def artFidHandler(style_images_path, content_images_path, stylized_images_path):
+        temp_stylized_dir = "temporary_stylized_images"
+        temp_content_dir = "temporary_content_images"
+        temp_style_dir = "temporary_style_images"
+        ogcontents = os.listdir(content_images_path)
+        prepare_directory(stylized_images_path, temp_stylized_dir)
+        prepare_directory(content_images_path, temp_content_dir)
+        prepare_directory(style_images_path, temp_style_dir)
+        stylized_images_path = temp_stylized_dir
+        content_images_path = temp_content_dir
+        style_images_path = temp_style_dir
+        contentss = os.listdir(content_images_path)
+        styless = os.listdir(style_images_path)
+        outss = os.listdir(stylized_images_path)
+        create_copies(style_images_path, len(sorted(os.listdir(content_images_path))) - 1)
+        create_interleaved_copies(content_images_path, len(sorted(os.listdir(style_images_path))) - 1)
+        resize_images(style_images_path)
+        resize_images(content_images_path)
+        resize_images(stylized_images_path)
+        contents = len(os.listdir(content_images_path))
+        styles = len(os.listdir(style_images_path))
+        outs = len(os.listdir(stylized_images_path))
+        print(contents, styles, outs)
+        results = Evaluator.artFid(style_images_path, content_images_path, stylized_images_path)
+        shutil.rmtree(temp_stylized_dir)
+        shutil.rmtree(temp_content_dir)
+        shutil.rmtree(temp_style_dir)
+        return results
 
     def artFid(style_images_path, content_images_path, stylized_images_path, cuda_device='0'):
         """
@@ -44,14 +118,12 @@ class Evaluator:
         @return output (str): Output from the art_fid command.
         """
         try:
-            temp_stylized_dir = "temp_stylized_images"
-            prepare_directory(stylized_images_path, temp_stylized_dir)
-
             command = [
                 'python', '-m', 'art_fid',
                 '--style_images', style_images_path,            #specify the path to directory containing input style images
                 '--content_images', content_images_path,        #specify the path to directory containing input content images
-                '--stylized_images', temp_stylized_dir       #specify the path to directory containing output stylized images
+                '--stylized_images', stylized_images_path,       #specify the path to directory containing output stylized images
+                '--batch_size', "1"
             ]
             env = os.environ.copy()        #set the CUDA_VISIBLE_DEVICES variable (specified in art-fid usage prompt)
             result = subprocess.run(        #execute the command as a subprocess
@@ -61,8 +133,11 @@ class Evaluator:
                 check=True,                 #if command fails return error
                 env=env                     #specify the cuda environment (default is 0)
             )
-            shutil.rmtree(temp_stylized_dir)
-            return result.stdout  #return the output from art-fid
+            match = re.search(r"ArtFID value: ([\d.]+)", result.stdout)
+            artfid_value = None
+            if match is not None and match.group(1) is not None:
+                artfid_value = float(match.group(1))
+            return artfid_value #return the output from art-fid
         except subprocess.CalledProcessError as e:
             print("Error calling art_fid:", e)
             print("Error output:", e.stderr)
@@ -84,19 +159,24 @@ class Evaluator:
         prepare_directory(stylized_folder_path, temp_stylized_dir)
         stylized_folder_path = temp_stylized_dir
         ssim_scores = []
-        content_files = os.listdir(content_folder_path)
-        stylized_files = os.listdir(stylized_folder_path)
-        for i in range(len(content_files)):
-            content_image_path = content_files[i]
-            stylized_image_path = stylized_files[i]
+        content_files = sorted(os.listdir(content_folder_path))
+        stylized_files = sorted(os.listdir(stylized_folder_path))
+        for content_file in content_files:
+            if content_file == ".DS_Store":
+                continue
+            content_image_path = os.path.join(content_folder_path, content_file)
             content_image = cv2.imread(content_image_path, cv2.IMREAD_GRAYSCALE)       #load the respective images
-            stylized_image = cv2.imread(stylized_image_path, cv2.IMREAD_GRAYSCALE)
-            if content_image is None or stylized_image is None:
-                raise ValueError("One of the images could not be loaded.")              #error if one of the images isn't loaded properly
-            if content_image.shape != stylized_image.shape:
-                stylized_image = cv2.resize(stylized_image, (content_image.shape[1], content_image.shape[0]))       #reshape if the two images aren't the same size
-            ssim_score, _ = ssim(content_image, stylized_image, full=True)              #compute the ssim score for the two images
-            ssim_scores.append(ssim_score)
+            content_prefix = os.path.splitext(content_file)[0]
+            for stylized_file in stylized_files:
+                if stylized_file.startswith(content_prefix):  # Match stylized images based on content image prefix
+                    stylized_image_path = os.path.join(stylized_folder_path, stylized_file)
+                    stylized_image = cv2.imread(stylized_image_path, cv2.IMREAD_GRAYSCALE)
+                    if content_image is None or stylized_image is None:
+                        raise ValueError("One of the images could not be loaded.")              #error if one of the images isn't loaded properly
+                    if content_image.shape != stylized_image.shape:
+                        stylized_image = cv2.resize(stylized_image, (content_image.shape[1], content_image.shape[0]))       #reshape if the two images aren't the same size
+                    ssim_score, _ = ssim(content_image, stylized_image, full=True)              #compute the ssim score for the two images
+                    ssim_scores.append(ssim_score)
         shutil.rmtree(temp_stylized_dir)
         return ssim_scores
 
@@ -115,23 +195,28 @@ class Evaluator:
         prepare_directory(stylized_folder_path, temp_stylized_dir)
         stylized_folder_path = temp_stylized_dir
         color_similarity_scores = []
-        style_files = os.listdir(style_folder_path)
-        stylized_files = os.listdir(stylized_folder_path)
-        for i in range(len(style_files)):
-            style_image_path = style_files[i]
-            stylized_image_path = stylized_files[i]
-            style_image = cv2.imread(style_image_path)                                #load the respective images
-            stylized_image = cv2.imread(stylized_image_path)
-            if style_image is None or stylized_image is None:
-                raise ValueError("One of the images failed to load.")             #error if one of the images isn't loaded properly
-            if style_image.shape != stylized_image.shape:
-                stylized_image = cv2.resize(stylized_image, (style_image.shape[1], style_image.shape[0]))
-            style_hist = [cv2.calcHist([style_image], [i], None, [256], [0, 256]) for i in range(3)]                #generate the color histograms for the two respective images
-            stylized_hist = [cv2.calcHist([stylized_image], [i], None, [256], [0, 256]) for i in range(3)]
-            style_hist = [cv2.normalize(h, h).flatten() for h in style_hist]                                        #normalize the histograms
-            stylized_hist = [cv2.normalize(h, h).flatten() for h in stylized_hist]
-            color_similarity_score = np.mean([cv2.compareHist(style_hist[i], stylized_hist[i], cv2.HISTCMP_CORREL) for i in range(3)])          #compute the similarity score based on the average correlation for the two normalized histograms
-            color_similarity_scores.append(color_similarity_score)
+        style_files = sorted(os.listdir(style_folder_path))
+        stylized_files = sorted(os.listdir(stylized_folder_path))
+        for style_file in style_files:
+            if style_file == ".DS_Store":
+                continue
+            style_image_path = os.path.join(style_folder_path, style_file)
+            style_image = cv2.imread(style_image_path) #load the respective style image
+            style_suffix = os.path.splitext(style_file)[0]
+            for stylized_file in stylized_files:
+                if os.path.splitext(stylized_file)[0].endswith(style_suffix):  #match stylized images by the suffix
+                    stylized_image_path = os.path.join(stylized_folder_path, stylized_file)
+                    stylized_image = cv2.imread(stylized_image_path)
+                    if style_image is None or stylized_image is None:
+                        raise ValueError("One of the images failed to load.")             #error if one of the images isn't loaded properly
+                    if style_image.shape != stylized_image.shape:
+                        stylized_image = cv2.resize(stylized_image, (style_image.shape[1], style_image.shape[0]))
+                    style_hist = [cv2.calcHist([style_image], [i], None, [256], [0, 256]) for i in range(3)]                #generate the color histograms for the two respective images
+                    stylized_hist = [cv2.calcHist([stylized_image], [i], None, [256], [0, 256]) for i in range(3)]
+                    style_hist = [cv2.normalize(h, h).flatten() for h in style_hist]                                        #normalize the histograms
+                    stylized_hist = [cv2.normalize(h, h).flatten() for h in stylized_hist]
+                    color_similarity_score = np.mean([cv2.compareHist(style_hist[i], stylized_hist[i], cv2.HISTCMP_CORREL) for i in range(3)])          #compute the similarity score based on the average correlation for the two normalized histograms
+                    color_similarity_scores.append(color_similarity_score)
         shutil.rmtree(temp_stylized_dir)
         return color_similarity_scores
 
@@ -148,7 +233,76 @@ class Evaluator:
 
         @return content_loss [], style_loss [] (float): Computed Content and Style loss between the respective stylized and content/style images, return as lists
         """
-        pass
+        content_losses = []
+        style_losses = []
+        content_files = sorted(os.listdir(content_folder_path))
+        style_files = sorted(os.listdir(style_folder_path))
+        temp_stylized_dir = "temp_stylized_folder"
+        prepare_directory(stylized_folder_path, temp_stylized_dir)
+        stylized_folder_path = temp_stylized_dir
+        stylized_files = sorted(os.listdir(stylized_folder_path))
+        k = 0
+        for i in range(len(style_files)):
+            for j in range(len(content_files)): 
+                content_file = content_files[j]
+                style_file = style_files[i]
+                stylized_file = stylized_files[k]
+                if style_file == ".DS_Store" or content_file == ".DS_Store":
+                    continue
+                content_image_path = os.path.join(content_folder_path, content_file)
+                style_image_path = os.path.join(style_folder_path, style_file)
+                stylized_image_path = os.path.join(stylized_folder_path, stylized_file)
+                image_size = 192
+                content_layer = 3
+                content_weight = 6e-2
+                cnn = models.squeezenet1_1(weights=SqueezeNet1_1_Weights.IMAGENET1K_V1).features
+                cnn = cnn.eval()
+                for param in cnn.parameters():
+                    param.requires_grad = False
+                def preprocess(img, size=512):
+                    transform = transforms.Compose([
+                        transforms.Resize(size),
+                        transforms.ToTensor(),
+                        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                        transforms.Lambda(lambda x: x[None]),
+                    ])
+                    return transform(img)
+                def features_from_img(imgpath, imgsize):
+                    img = preprocess(Image.open(imgpath), size=imgsize)
+                    img_var = img.type(torch.FloatTensor)
+                    return extract_features(img_var, cnn), img_var
+                def extract_features(x, cnn):
+                    features = []
+                    prev_feat = x
+                    for i, module in enumerate(cnn._modules.values()):
+                        next_feat = module(prev_feat)
+                        features.append(next_feat)
+                        prev_feat = next_feat
+                    return features
+                content_feats, content_img_var = features_from_img(content_image_path, image_size)
+                style_feats, style_img_var = features_from_img(style_image_path, image_size)
+                stylized_feats, stylized_img_var = features_from_img(stylized_image_path, image_size)
+                content_loss = content_weight * torch.sum(torch.pow(content_feats[content_layer] - stylized_feats[content_layer], 2)).cpu().data.numpy()
+                def gram_matrix(features):
+                    N, C, H, W = features.size() #extract the feature dimensions
+                    feat = features.view(N, C, -1) #reshape to (N, C, H * W)
+                    gram = torch.bmm(feat, feat.transpose(1, 2)) #compute the gram matrix (N, C, C)
+                    return gram
+                def compute_style_loss(feats, style_layers, style_targets, style_weights):
+                    cur_style_loss = 0
+                    for i in range(len(style_layers)): #iterate for each layer
+                        gram = gram_matrix(feats[style_layers[i]]) #retrieve the respective gram matrix
+                        cur_style_loss += style_weights[i] * torch.sum(torch.pow(gram - style_targets[i], 2)) #compute the style loss given the equation
+                    return cur_style_loss
+                style_targets = []
+                for idx in [1, 4, 6, 7]:
+                    style_targets.append(gram_matrix(style_feats[idx].clone()))
+                style_loss = compute_style_loss(stylized_feats, [1, 4, 6, 7], style_targets, [300000, 1000, 15, 3]).cpu().data.numpy()
+                content_losses.append(content_loss)
+                style_losses.append(style_loss)
+                k += 1
+        shutil.rmtree(temp_stylized_dir)
+        return content_losses, style_losses
 
 
     def timePerformance (output_path):
@@ -157,7 +311,7 @@ class Evaluator:
         @parameters
             output_path (str): string for the directory for the respective models output
 
-        @return average_time (float): average time it took the model to execute
+        @return average_time (float), load_time (float), unit (str): average time it took the model to execute, the load_time for the model, and then the unit for the times
         """
         for file in os.listdir(output_path):
             if file.lower().endswith('.json'):  
@@ -165,12 +319,55 @@ class Evaluator:
         try:
             with open(time_file, 'r') as file:
                 data = json.load(file) #load the json file
-            times = list(data.values())
-            if not times:
-                print("No time values found in the JSON file.")
-                return None
-            average_time = sum(times) / len(times) #compute the average time
-            return average_time   
+            time_sum = 0
+            time_count = 0
+            load_time = 0
+            unit = ""
+            for key, value in data.items():
+                if key not in ["load_time", "unit"]:
+                    time_sum += value
+                    time_count += 1
+                elif key == "load_time":
+                    load_time = value
+                elif key == "unit":
+                    unit = value
+            average_time = time_sum / time_count #compute the average time
+            return average_time, load_time, unit
         except (FileNotFoundError, json.JSONDecodeError) as e:
             print(f"Error reading JSON file: {e}")
             return None
+    
+    def animationPerformance():
+        pass
+        
+    def evaluate(style, content, output):
+        results = {}
+        for model_dir in os.listdir(output):
+            if model_dir == ".DS_Store":
+                continue
+            stylized_folder_path = os.path.join(output, model_dir)
+            artfid = Evaluator.artFidHandler(style, content, stylized_folder_path)
+            ssims = Evaluator.structuralSimilarity(content, stylized_folder_path)
+            colorsims = Evaluator.colorSimilarity(style, stylized_folder_path)
+            contentLoss, styleLoss = Evaluator.contentStyleLoss(content, style, stylized_folder_path)
+            avg_times, load_time, unit = Evaluator.timePerformance(stylized_folder_path)
+            results[model_dir] = {
+            "ArtFID": artfid,
+            "SSIM": np.mean(ssims),
+            "ColorSim": np.mean(colorsims),
+            "ContentLoss": np.mean(contentLoss),
+            "StyleLoss": np.mean(styleLoss),
+            "AvgTime": avg_times,
+            "LoadTime": load_time
+            }
+        return results
+    
+
+content_path = sys.argv[1]
+style_path = sys.argv[2]
+output_path = sys.argv[3]
+#content_path = "/Users/bmhall17/Desktop/UMass/Fall 2024/CS682 Neural Networks/cs682finalproject/NSTEvaluator/content_images"
+#style_path = "/Users/bmhall17/Desktop/UMass/Fall 2024/CS682 Neural Networks/cs682finalproject/NSTEvaluator/style_images"
+#output_path = "/Users/bmhall17/Downloads/output"
+evaluation_results = Evaluator.evaluate(style_path, content_path, output_path)
+print(evaluation_results)
