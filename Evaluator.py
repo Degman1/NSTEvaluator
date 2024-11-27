@@ -33,40 +33,36 @@ def prepare_directory(src_dir, dst_dir, valid_extensions=('.png', '.jpg', '.jpeg
             if file.lower().endswith(valid_extensions):
                 shutil.copy(os.path.join(src_dir, file), dst_dir)
 
-def create_copies(src_dir, copies):
-    # Iterate over all files in the source directory
+def create_copies(src_dir, copies): 
+    """
+    Ensure that the style directory contains the proper number of copies for ART_FID to properly execute
+    """
     for filename in os.listdir(src_dir):
         file_path = os.path.join(src_dir, filename)
-        # Check if it's a file (and not a directory)
         if os.path.isfile(file_path):
-            # Create the specified number of copies
             for i in range(copies):
-                # Construct a unique filename for the copy
-                new_filename = f"{os.path.splitext(filename)[0]}_copy{i+1}{os.path.splitext(filename)[1]}"
+                new_filename = f"{os.path.splitext(filename)[0]}_copy{i+1}{os.path.splitext(filename)[1]}" #copies name
                 new_file_path = os.path.join(src_dir, new_filename)
-                
-                # Copy the file to the original directory
-                shutil.copy(file_path, new_file_path)
+                shutil.copy(file_path, new_file_path) #copy the file to the directory
 
 
 def create_interleaved_copies(src_dir, copies):
-    # Get a sorted list of files in the source directory
+    """"
+    Ensure that the content directory is in the proper ordering and contains the proper number of copies of images for ART_FID
+    """
     files = sorted(os.listdir(src_dir))
-    
-    # Interleave the copies
     for i in range(copies):
         for filename in files:
             file_path = os.path.join(src_dir, filename)
-            # Check if it's a file (and not a directory)
             if os.path.isfile(file_path):
-                # Construct a unique filename for the copy
                 new_filename = f"{os.path.splitext(filename)[0]}_copy{i+1}{os.path.splitext(filename)[1]}"
                 new_file_path = os.path.join(src_dir, new_filename)
-                
-                # Copy the file to the original directory
                 shutil.copy(file_path, new_file_path)
 
 def resize_images(image_folder, target_size=(224, 224)):
+    """
+    Resize images in given directory to 224x224 for ART_FID
+    """
     for image_name in os.listdir(image_folder):
         image_path = os.path.join(image_folder, image_name)
         img = Image.open(image_path)
@@ -77,30 +73,33 @@ def resize_images(image_folder, target_size=(224, 224)):
 class Evaluator:
 
     def artFidHandler(style_images_path, content_images_path, stylized_images_path):
-        temp_stylized_dir = "temporary_stylized_images"
+        """
+        Passes the corrected inputs to the art_fid module
+
+        @parameters
+            style_images_path (str): Path to the directory containing style images.
+            content_images_path (str): Path to the directory containing content images.
+            stylized_images_path (str): Path to the directory containing stylized images.
+        
+        @return results (float): Output from the art_fid value.
+        """
+        temp_stylized_dir = "temporary_stylized_images" #create temporary directories that will all have the same size
         temp_content_dir = "temporary_content_images"
         temp_style_dir = "temporary_style_images"
         ogcontents = os.listdir(content_images_path)
-        prepare_directory(stylized_images_path, temp_stylized_dir)
+        prepare_directory(stylized_images_path, temp_stylized_dir) #ensure only image files
         prepare_directory(content_images_path, temp_content_dir)
         prepare_directory(style_images_path, temp_style_dir)
         stylized_images_path = temp_stylized_dir
         content_images_path = temp_content_dir
         style_images_path = temp_style_dir
-        contentss = os.listdir(content_images_path)
-        styless = os.listdir(style_images_path)
-        outss = os.listdir(stylized_images_path)
         create_copies(style_images_path, len(sorted(os.listdir(content_images_path))) - 1)
         create_interleaved_copies(content_images_path, len(sorted(os.listdir(style_images_path))) - 1)
         resize_images(style_images_path)
         resize_images(content_images_path)
         resize_images(stylized_images_path)
-        contents = len(os.listdir(content_images_path))
-        styles = len(os.listdir(style_images_path))
-        outs = len(os.listdir(stylized_images_path))
-        print(contents, styles, outs)
         results = Evaluator.artFid(style_images_path, content_images_path, stylized_images_path)
-        shutil.rmtree(temp_stylized_dir)
+        shutil.rmtree(temp_stylized_dir) #clear the temporary directories
         shutil.rmtree(temp_content_dir)
         shutil.rmtree(temp_style_dir)
         return results
@@ -115,7 +114,7 @@ class Evaluator:
             stylized_images_path (str): Path to the directory containing stylized images.
             cuda_device (str): CUDA device to use (default is '0').
 
-        @return output (str): Output from the art_fid command.
+        @return artfid_value (float): Output from the art_fid value.
         """
         try:
             command = [
@@ -138,6 +137,7 @@ class Evaluator:
             if match is not None and match.group(1) is not None:
                 artfid_value = float(match.group(1))
             return artfid_value #return the output from art-fid
+        
         except subprocess.CalledProcessError as e:
             print("Error calling art_fid:", e)
             print("Error output:", e.stderr)
@@ -333,11 +333,19 @@ class Evaluator:
                     unit = value
             average_time = time_sum / time_count #compute the average time
             return average_time, load_time, unit
+        
         except (FileNotFoundError, json.JSONDecodeError) as e:
             print(f"Error reading JSON file: {e}")
             return None
     
     def animationPerformance():
+        """
+        Weighted metric that combines the other metrics to more accurately assess model performance
+        
+        @parameters
+
+        @return result (float): output metric computed for the respective model
+        """
         pass
         
     def evaluate(style, content, output):
