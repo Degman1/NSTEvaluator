@@ -394,6 +394,7 @@ class Evaluator:
             ani_score = Evaluator.animationPerformance(np.mean(ssims), np.mean(colorsims), np.mean(contentLoss), np.mean(styleLoss), avg_times, load_time)
             results[model_dir] = {
             "ArtFID": artfid,
+            "ArtFID": artfid,
             "SSIM": np.mean(ssims),
             "ColorSim": np.mean(colorsims),
             "ContentLoss": np.mean(contentLoss),
@@ -406,11 +407,11 @@ class Evaluator:
         return results
     
 
-#content_path = sys.argv[1]
-#style_path = sys.argv[2]
-#output_path = sys.argv[3]
-content_path = "/Users/bmhall17/Desktop/UMass/Fall 2024/CS682 Neural Networks/cs682finalproject/NSTEvaluator/content_images"
-style_path = "/Users/bmhall17/Desktop/UMass/Fall 2024/CS682 Neural Networks/cs682finalproject/NSTEvaluator/style_images"
-output_path = "/Users/bmhall17/Downloads/output"
+content_path = sys.argv[1]
+style_path = sys.argv[2]
+output_path = sys.argv[3]
+#content_path = "/Users/bmhall17/Desktop/UMass/Fall 2024/CS682 Neural Networks/cs682finalproject/NSTEvaluator/content_images"
+#style_path = "/Users/bmhall17/Desktop/UMass/Fall 2024/CS682 Neural Networks/cs682finalproject/NSTEvaluator/style_images"
+#output_path = "/Users/bmhall17/Downloads/output"
 evaluation_results = Evaluator.evaluate(style_path, content_path, output_path)
 print(evaluation_results)
