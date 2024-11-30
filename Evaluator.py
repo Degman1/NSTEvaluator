@@ -24,10 +24,9 @@ def prepare_directory(src_dir, dst_dir, valid_extensions=('.png', '.jpg', '.jpeg
             valid_extensions (tuple): Valid file extensions to include.
         """
         # Create destination directory if it doesn't exist
-        if not os.path.exists(dst_dir):
-            os.makedirs(dst_dir)
-        else:
+        if os.path.exists(dst_dir):
             shutil.rmtree(dst_dir)
+        os.makedirs(dst_dir)
         # Copy only valid image files
         for file in os.listdir(src_dir):
             if file == ".DS_Store":
@@ -85,18 +84,23 @@ class Evaluator:
         
         @return results (float): Output from the art_fid value.
         """
-        temp_stylized_dir = "temporary_stylized_images" #create temporary directories that will all have the same size
-        temp_content_dir = "temporary_content_images"
-        temp_style_dir = "temporary_style_images"
-        ogcontents = os.listdir(content_images_path)
+        temp_stylized_dir = "temp_stylized_images" #create temporary directories that will all have the same size
+        temp_content_dir = "temp_content_images"
+        temp_style_dir = "temp_style_images"
+        ogstylized = os.listdir(stylized_images_path)
+        ogscontent = os.listdir(content_images_path)
+        ogstyle = os.listdir(style_images_path)
         prepare_directory(stylized_images_path, temp_stylized_dir) #ensure only image files
         prepare_directory(content_images_path, temp_content_dir)
         prepare_directory(style_images_path, temp_style_dir)
+        ogstylized = os.listdir(temp_stylized_dir)
+        ogscontent = os.listdir(temp_content_dir)
+        ogstyle = os.listdir(temp_style_dir)
         stylized_images_path = temp_stylized_dir
         content_images_path = temp_content_dir
         style_images_path = temp_style_dir
-        create_copies(style_images_path, len(sorted(os.listdir(content_images_path))) - 1)
-        create_interleaved_copies(content_images_path, len(sorted(os.listdir(style_images_path))) - 1)
+        create_copies(temp_style_dir, len(sorted(os.listdir(content_images_path))) - 1)
+        create_interleaved_copies(temp_content_dir, len(sorted(os.listdir(style_images_path))) - 1)
         resize_images(style_images_path)
         resize_images(content_images_path)
         resize_images(stylized_images_path)
@@ -368,7 +372,6 @@ class Evaluator:
                                     scores[(alpha, beta, gamma, delta, epsilon, zeta)] = out
         
         maxKey = max(scores, key = scores.get)
-        print(maxKey)
         return scores[maxKey]
         
     def evaluate(style, content, output):
@@ -377,14 +380,20 @@ class Evaluator:
             if model_dir == ".DS_Store":
                 continue
             stylized_folder_path = os.path.join(output, model_dir)
-            #artfid = Evaluator.artFidHandler(style, content, stylized_folder_path)
+            print(model_dir, "started")
+            artfid = Evaluator.artFidHandler(style, content, stylized_folder_path)
+            print("artfid done")
             ssims = Evaluator.structuralSimilarity(content, stylized_folder_path)
+            print("ssims done")
             colorsims = Evaluator.colorSimilarity(style, stylized_folder_path)
+            print("colors done")
             contentLoss, styleLoss = Evaluator.contentStyleLoss(content, style, stylized_folder_path)
+            print("loss done")
             avg_times, load_time, unit = Evaluator.timePerformance(stylized_folder_path)
+            print("times done")
             ani_score = Evaluator.animationPerformance(np.mean(ssims), np.mean(colorsims), np.mean(contentLoss), np.mean(styleLoss), avg_times, load_time)
             results[model_dir] = {
-            #"ArtFID": artfid,
+            "ArtFID": artfid,
             "SSIM": np.mean(ssims),
             "ColorSim": np.mean(colorsims),
             "ContentLoss": np.mean(contentLoss),
@@ -393,6 +402,7 @@ class Evaluator:
             "AvgTime": avg_times,
             "LoadTime": load_time
             }
+            print(model_dir, " done")
         return results
     
 
