@@ -154,12 +154,46 @@ class NSTModule(ABC):
         
         content_loader, style_loader = self._get_dataloaders()
         
+        data = None
+        file = None
+        json_file = 'content_to_style.json'
+        
+        try:
+            # Open the JSON file
+            file = open(json_file, 'r')
+            try:
+                # Load the JSON data
+                data = json.load(file)
+            finally:
+                # Ensure the file is closed
+                file.close()
+        except FileNotFoundError:
+            print(f"Error: File {json_file} not found.")
+            return False
+        except json.JSONDecodeError:
+            print(f"Error: File {json_file} is not a valid JSON file.")
+            return False
+        
         for ci, (content, content_name) in enumerate(content_loader):
             content_name = content_name[0]
+            if content_name not in data:
+                continue
+            
+            #temp TODO remove
+            output_path = '../output/preprocessed_content/%s.png' % (content_name)
+            vutils.save_image(content, output_path, normalize=True, scale_each=True, nrow=self.batch_size)
+            
             self._preprocess_content_image(content)
             for sj, (style, style_name) in enumerate(style_loader):
                 style_name = style_name[0]
+                if data[content_name] != style_name:
+                    continue
+                
+                #temp TODO remove
+                output_path = '../output/preprocessed_style/%s.png' % (style_name)
+                vutils.save_image(style, output_path, normalize=True, scale_each=True, nrow=self.batch_size)
                 self._preprocess_style_image(style)
+                
                 output, time = self._benchmark_single_style_transfer(self.content_image, self.style_image)
                 output_path = self._postprocess_output_image(output, content_name, style_name)
                 outputs[output_path] = time

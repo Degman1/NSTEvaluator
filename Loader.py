@@ -18,6 +18,7 @@ class Dataset(data.Dataset):
         self.image_list = sorted(self.image_list)
         self.transform = transforms.Compose([
             		         transforms.Resize(fineSize),
+                             transforms.CenterCrop(fineSize),
             		         transforms.ToTensor()])
 
     def __getitem__(self,index):

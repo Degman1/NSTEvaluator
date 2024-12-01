@@ -22,7 +22,7 @@ class ArbitraryMultiAdaptationNSTModule(NSTModule):
         self.transform_dir = 'Arbitrary-Style-Transfer-via-Multi-Adaptation-Network/models/ma_module_iter_160000.pth'
         self.vgg_dir = 'Arbitrary-Style-Transfer-via-Multi-Adaptation-Network/model/vgg_normalised.pth'
 
-        self.alpha = 1.0
+        self.alpha = 0.6
         
     def style_transfer(self, vgg, decoder, ma_module, content, style, alpha=1.0,
                     interpolation_weights=None):
@@ -108,7 +108,7 @@ class ArbitraryMultiAdaptationNSTModule(NSTModule):
     
     def _transfer_style(self, content_image, style_image):
         with torch.no_grad():
-            output = self.style_transfer(self.vgg, self.model['decoder'], self.model['ma_module'], content_image, style_image)
+            output = self.style_transfer(self.vgg, self.model['decoder'], self.model['ma_module'], content_image, style_image, alpha=self.alpha)
         return output
 
 if __name__ == '__main__':
