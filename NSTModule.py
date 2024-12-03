@@ -7,7 +7,6 @@ from PIL import Image
 import os
 import torchvision.transforms as transforms
 import json
-from Evaluator import Evaluator
 
 from Loader import Dataset
 
@@ -35,8 +34,8 @@ class NSTModule(ABC):
         self.style_image = torch.Tensor(self.batch_size, 3, self.fine_size, self.fine_size).to(self.device)
         
         # Image directories
-        self.content_image_directory = '../content_images/'
-        self.style_image_directory = '../style_images/'
+        self.content_image_directory = '../output/preprocessed_content/'
+        self.style_image_directory = '../output/preprocessed_style/'
         self.output_directory = f'../output/{name}'
         self._setup_output_directory()
 

@@ -22,7 +22,7 @@ class ArbitraryMultiAdaptationNSTModule(NSTModule):
         self.transform_dir = 'Arbitrary-Style-Transfer-via-Multi-Adaptation-Network/models/ma_module_iter_160000.pth'
         self.vgg_dir = 'Arbitrary-Style-Transfer-via-Multi-Adaptation-Network/model/vgg_normalised.pth'
 
-        self.alpha = 0.6
+        self.alpha = 0.9
         
     def style_transfer(self, vgg, decoder, ma_module, content, style, alpha=1.0,
                     interpolation_weights=None):

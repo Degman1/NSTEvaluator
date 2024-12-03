@@ -27,7 +27,7 @@ class StyleIDNSTModule(NSTModule):
         self.ddim_steps = self.save_feature_timesteps
         self.start_step = 49
         self.ddim_eta = 0.0
-        self.T = 5.0
+        self.T = 1.5
         self.gamma = 0.75
         self.attn_layer = "6,7,8,9,10,11"
         self.self_attn_output_block_indices = list(map(int, self.attn_layer.split(",")))
@@ -127,7 +127,7 @@ class StyleIDNSTModule(NSTModule):
         self.uc = self.model["model"].get_learned_conditioning([""])
 
     def _preprocess_content_image(self, image):
-        scaled_image = 2.0 * image + 1
+        scaled_image = 2.0 * image - 1
         super()._preprocess_content_image(scaled_image)
         init_cnt = self.model["model"].get_first_stage_encoding(
             self.model["model"].encode_first_stage(self.content_image)
@@ -146,7 +146,7 @@ class StyleIDNSTModule(NSTModule):
         self.cnt_z_enc = self.feat_maps[0]["z_enc"]
 
     def _preprocess_style_image(self, image):
-        scaled_image = 2.0 * image + 1
+        scaled_image = 2.0 * image - 1
         super()._preprocess_style_image(scaled_image)
         init_sty = self.model["model"].get_first_stage_encoding(
             self.model["model"].encode_first_stage(self.style_image)

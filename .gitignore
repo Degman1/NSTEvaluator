@@ -165,3 +165,4 @@ output/
 setenv.sh
 batch.sh
 *.out
+out/

@@ -94,9 +94,9 @@ if __name__ == "__main__":
         "images/output_exp1/Linear",
         "images/output_exp1/ArbitraryMultiAdaptation_alpha60",
         "images/output_exp1/ArbitraryMultiAdaptation_alpha90",
-        "images/output_exp1/StyleID_gamma75",
+        "images/output_exp1/StyleID",
     ]
-    row_labels = ["Content", "Baseline", "Style", "Linear", "AMA60", "AMA90", "SID75"]
+    row_labels = ["Content", "Baseline", "Style", "Linear", "AMA60", "AMA90", "SID"]
     output_file = "images/exp1_table.png"  # Path where the figure will be saved
     
     create_image_table_from_dirs(directories, row_labels, output_file)
@@ -108,9 +108,9 @@ if __name__ == "__main__":
         "images/output_exp2/Linear",
         "images/output_exp2/ArbitraryMultiAdaptation_alpha60",
         "images/output_exp2/ArbitraryMultiAdaptation_alpha90",
-        "images/output_exp2/StyleID_gamma75",
+        "images/output_exp2/StyleID",
     ]
-    row_labels = ["Content", "Baseline", "Style", "Linear", "AMA60", "AMA90", "SID75"]
+    row_labels = ["Content", "Baseline", "Style", "Linear", "AMA60", "AMA90", "SID"]
     output_file = "images/exp2_table.png"  # Path where the figure will be saved
     
     create_image_table_from_dirs(directories, row_labels, output_file)
@@ -122,12 +122,12 @@ if __name__ == "__main__":
         "images/output_exp3/Linear",
         "images/output_exp3/ArbitraryMultiAdaptation_alpha60",
         "images/output_exp3/ArbitraryMultiAdaptation_alpha90",
-        "images/output_exp3/StyleID_gamma75_temp5",
+        "images/output_exp3/StyleID",
     ]
-    row_labels = ["Content", "Baseline", "Style", "Linear", "AMA60", "AMA90", "SID75-5"]
+    row_labels = ["Content", "Baseline", "Style", "Linear", "AMA60", "AMA90", "SID"]
     output_file = "images/exp3_table.png"  # Path where the figure will be saved
     
-    create_image_table_from_dirs(directories, row_labels, output_file, label_offset=-0.01, flip_axes=True)
+    create_image_table_from_dirs(directories, row_labels, output_file, label_offset=-0.04)
     
     directories = [
         "images/output_exp4/preprocessed_content",
@@ -135,9 +135,9 @@ if __name__ == "__main__":
         "images/output_exp4/Linear",
         "images/output_exp4/ArbitraryMultiAdaptation_alpha60",
         "images/output_exp4/ArbitraryMultiAdaptation_alpha90",
-        "images/output_exp4/StyleID_gamma75",
+        "images/output_exp4/StyleID",
     ]
-    row_labels = ["Content", "Style", "Linear", "AMA60", "AMA90", "SID75"]
+    row_labels = ["Content", "Style", "Linear", "AMA60", "AMA90", "SID"]
     output_file = "images/exp4_table.png"  # Path where the figure will be saved
 
     create_image_table_from_dirs(directories, row_labels, output_file, label_offset=-0.035)
